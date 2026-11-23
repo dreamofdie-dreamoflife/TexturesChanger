@@ -1,0 +1,44 @@
+name: Update texture catalog
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'textures/**'
+      - '.github/scripts/update_catalog.py'
+      - '.github/workflows/texture-catalog.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: texture-catalog-main
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Regenerate catalog
+        shell: bash
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3; do
+            git fetch origin main
+            git checkout -B main FETCH_HEAD
+            python3 .github/scripts/update_catalog.py
+            if git diff --quiet -- catalog.json; then
+              exit 0
+            fi
+            git add catalog.json
+            git commit -m 'Update texture catalog'
+            if git push origin HEAD:main; then
+              exit 0
+            fi
+          done
+          exit 1
